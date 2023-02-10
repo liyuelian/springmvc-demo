@@ -5,6 +5,7 @@ import com.li.myspringmvc.annotation.RequestMapping;
 import com.li.myspringmvc.context.MyWebApplicationContext;
 import com.li.myspringmvc.handler.MyHandler;
 
+import javax.servlet.ServletConfig;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
@@ -29,9 +30,11 @@ public class MyDispatcherServlet extends HttpServlet {
     MyWebApplicationContext myWebApplicationContext = null;
 
     @Override
-    public void init() throws ServletException {
-        //初始化ioc容器
-        myWebApplicationContext = new MyWebApplicationContext();
+    public void init(ServletConfig servletConfig) throws ServletException {
+        //获取到web.xml文件中的 contextConfigLocation的值
+        String configLocation = servletConfig.getInitParameter("contextConfigLocation");
+        //初始化自定义的 ioc容器
+        myWebApplicationContext = new MyWebApplicationContext(configLocation);
         myWebApplicationContext.init();
         //调用 initHandlerMapping()，完成url和控制器方法的映射
         initHandlerMapping();
@@ -93,7 +96,7 @@ public class MyDispatcherServlet extends HttpServlet {
         //这里的 requestURL为 /web工程路径/xxx 形式的
         String requestURL = request.getRequestURI();
         //方案一：切割掉前面的 web工程路径
-        int length = getServletContext().getContextPath().length();
+        int length = request.getContextPath().length();
         requestURL = requestURL.substring(length);
         System.out.println("requestURL=" + requestURL);
         //方案二：tomcat直接配置项目工程路径为 /

@@ -20,12 +20,21 @@ public class MyWebApplicationContext {
     //定义属性ioc，用于存放反射生成的 bean对象（单例的）
     public ConcurrentHashMap<String, Object> ioc = new ConcurrentHashMap<>();
 
+    public MyWebApplicationContext() {
+    }
+
+    private String configLocation;//属性，表示spring容器配置文件名
+    public MyWebApplicationContext(String configLocation) {
+        this.configLocation = configLocation;
+    }
+
     /**
      * 该方法完成对自己的 spring容器的初始化
      */
     public void init() {
         //返回的是我们在容器文件中配置的base-package的value
-        String basePackage = XMLParse.getBasePackage("myspringmvc.xml");
+        String basePackage = XMLParse.getBasePackage(configLocation.split(":")[1]);
+        //System.out.println(configLocation.split(":")[1]);
         //这时你的 basePackage是像 com.li.controller,com.li.service 这样子的
         //通过逗号进行分割包
         String[] basePackages = basePackage.split(",");
