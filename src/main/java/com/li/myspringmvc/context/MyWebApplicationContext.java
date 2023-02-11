@@ -1,6 +1,7 @@
 package com.li.myspringmvc.context;
 
 import com.li.myspringmvc.annotation.Controller;
+import com.li.myspringmvc.annotation.Service;
 import com.li.myspringmvc.xml.XMLParse;
 
 import java.io.File;
@@ -24,6 +25,7 @@ public class MyWebApplicationContext {
     }
 
     private String configLocation;//属性，表示spring容器配置文件名
+
     public MyWebApplicationContext(String configLocation) {
         this.configLocation = configLocation;
     }
@@ -113,6 +115,32 @@ public class MyWebApplicationContext {
                     }
                     ioc.put(beanName, instance);
                 }//如果有其他注解，可以进行扩展
+                else if (clazz.isAnnotationPresent(Service.class)) {//判断是否添加了 @Service注解
+                    //获取 @Service注解的value值作为 beanName
+                    String beanName = clazz.getAnnotation(Service.class).value();
+                    //如果没有指定value
+                    if ("".equals(beanName)) {
+                        //可以通过接口名/列名（首字母小写）作为id注入ioc容器
+                        //1.通过反射，得到所有接口的名称
+                        Class<?>[] interfaces = clazz.getInterfaces();
+                        Object instance = clazz.newInstance();
+                        //2.遍历接口，然后通过多个接口名来分别作为这个实例的id
+                        for (Class<?> anInterface : interfaces) {
+                            //接口名（首字母小写）
+                            String beanName2 = anInterface.getSimpleName().substring(0, 1).toLowerCase()
+                                    + anInterface.getSimpleName().substring(1);
+                            //ioc容器中多个key（接口名）匹配同一个Instance实例
+                            ioc.put(beanName2, instance);
+                        }
+                        //3.同时通过类名（首字母小写）来作为这个实例的id
+                        String beanName3 = clazz.getSimpleName().substring(0, 1).toLowerCase()
+                                + clazz.getSimpleName().substring(1);
+                        ioc.put(beanName3, instance);
+                    } else {
+                        //如果指定了 beanName
+                        ioc.put(beanName, clazz.newInstance());
+                    }
+                }
             }
         } catch (Exception e) {
             e.printStackTrace();
