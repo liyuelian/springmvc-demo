@@ -1,13 +1,16 @@
 package com.li.myspringmvc.context;
 
+import com.li.myspringmvc.annotation.AutoWired;
 import com.li.myspringmvc.annotation.Controller;
 import com.li.myspringmvc.annotation.Service;
 import com.li.myspringmvc.xml.XMLParse;
 
 import java.io.File;
+import java.lang.reflect.Field;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -50,6 +53,9 @@ public class MyWebApplicationContext {
         //将扫描到的类反射到ioc容器
         executeInstance();
         System.out.println("扫描后的ioc容器=" + ioc);
+        //完成注入bean对象的属性装配
+        executeAutoWired();
+        System.out.println("装配后ioc容器=" + ioc);
     }
 
     /**
@@ -147,4 +153,58 @@ public class MyWebApplicationContext {
         }
 
     }
+
+    /**
+     * executeAutoWired 方法完成属性的自动装配
+     */
+    public void executeAutoWired() {
+        //判断ioc有没有要装配的对象
+        if (ioc.isEmpty()) {
+            return;
+        }
+        //遍历ioc所有的 bean对象，然后判断每个bean的属性字段是否需要装配
+        for (Map.Entry<String, Object> entry : ioc.entrySet()) {
+            //一个entry对象一对 k-v
+            // <String,Object>,String为 beanId，Object为 bean对象
+            //String key = entry.getKey();
+            Object bean = entry.getValue();
+            //得到当前bean的所有字段/属性
+            Field[] declaredFields = bean.getClass().getDeclaredFields();
+            //遍历判断字段是否要装配
+            for (Field declaredField : declaredFields) {
+                if (declaredField.isAnnotationPresent(AutoWired.class)) {
+                    //得到当前字段的 @AutoWired注解的 value值
+                    String beanName = declaredField.getAnnotation(AutoWired.class).value();
+                    if ("".equals(beanName)) {//如果没有设置value，按照默认规则
+                        //即按照字段类型的名称（首字母小写）作为 beanName来装配
+                        //得到字段的类型
+                        Class<?> type = declaredField.getType();
+                        //获取要匹配的名称（首字母小写）
+                        beanName = type.getSimpleName().substring(0, 1).toLowerCase()
+                                + type.getSimpleName().substring(1);
+                    }
+                    //如果设置了value，直接按照 beanName类进行装配
+                    //ioc中没有找到对应名称的 bean
+                    if (null == ioc.get(beanName)) {
+                        throw new RuntimeException("ioc容器中不存在属性" + beanName + "要装配的对象！");
+                    }
+                    //ioc中找到了对应名称的 bean
+                    //防止属性为private，使用暴破
+                    declaredField.setAccessible(true);
+                    try {
+                        //装配属性
+                        //第一个参数为当前字段所在类的 bean，第二个参数为当前的字段要关联的 bean
+                        declaredField.set(bean, ioc.get(beanName));
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+
+                }
+
+            }
+
+        }
+
+    }
+
 }

@@ -20,7 +20,7 @@ public class MonsterServiceImpl implements MonsterService {
         //这里模拟到 DB获取数据
         List<Monster> monsters = new ArrayList<>();
         monsters.add(new Monster(100, "牛魔王", "芭蕉扇", 400));
-        monsters.add(new Monster(100, "猫妖", "撕咬", 800));
+        monsters.add(new Monster(200, "猫妖", "撕咬", 800));
         return monsters;
     }
 }
