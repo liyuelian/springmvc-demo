@@ -2,6 +2,7 @@ package com.li.myspringmvc.servlet;
 
 import com.li.myspringmvc.annotation.Controller;
 import com.li.myspringmvc.annotation.RequestMapping;
+import com.li.myspringmvc.annotation.RequestParam;
 import com.li.myspringmvc.context.MyWebApplicationContext;
 import com.li.myspringmvc.handler.MyHandler;
 
@@ -12,9 +13,8 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.lang.reflect.Method;
-import java.util.ArrayList;
-import java.util.Map;
-import java.util.Set;
+import java.lang.reflect.Parameter;
+import java.util.*;
 
 /**
  * @author 李
@@ -122,12 +122,118 @@ public class MyDispatcherServlet extends HttpServlet {
             if (myHandler == null) {
                 response.getWriter().print("<h1>404 NOT FOUND</h1>");
             } else {//匹配成功,就反射调用控制器的方法
-                myHandler.getMethod()
-                        .invoke(myHandler.getController(), request, response);
+                /**
+                 * 1.原先的写法为 myHandler.getMethod()
+                 *      .invoke(myHandler.getController(), request, response);
+                 *  它的局限性是目标方法只能有两个形参： HttPServletRequest 和 HttPServletResponse
+                 * 2.改进：将需要传递给目标方法的实参，封装到一个参数数组，然后以反射调用的方式传递给目标方法
+                 * 3.public Object invoke(Object obj, Object... args)
+                 */
+                //1.先获取目标方法的所有形参的参数信息
+                Class<?>[] parameterTypes = myHandler.getMethod().getParameterTypes();
+                //2.创建一个参数数组（对应实参数组），在后面反射调动目标方法时会用到
+                Object[] params = new Object[parameterTypes.length];
+                //遍历形参数组 parameterTypes，根据形参数组的信息，将实参填充到实参数组中
+
+                //步骤一：将方法的 HttpServletRequest 和 HttpServletResponse 参数封装到参数数组，进行反射调用
+                for (int i = 0; i < parameterTypes.length; i++) {
+                    //取出当前的形参的类型
+                    Class<?> parameterType = parameterTypes[i];
+                    //如果这个形参是 HttpServletRequest，将request填充到实参数组params
+                    //在原生的SpringMVC中，是按照类型来匹配的，这里为了简化就按照名称来匹配
+                    if ("HttpServletRequest".equals(parameterType.getSimpleName())) {
+                        params[i] = request;
+                    } else if ("HttpServletResponse".equals(parameterType.getSimpleName())) {
+                        params[i] = response;
+                    }
+                }
+                //步骤二：将 http请求的参数封装到 params数组中[要注意填充实参数组的顺序问题]
+                // 获取http请求的参数集合 Map<String, String[]>
+                // 第一个参数 String 表示 http请求的参数名，
+                // 第二个参数 String[]数组，之所以为数组，是因为前端有可能传入像checkbox这种多选的参数
+                Map<String, String[]> parameterMap = request.getParameterMap();
+                // 遍历 parameterMap，将请求参数按照顺序填充到实参数组 params
+                for (Map.Entry<String, String[]> entry : parameterMap.entrySet()) {
+                    //取出请求参数的名
+                    String name = entry.getKey();
+                    //取出请求参数的值（这里为了简化，只考虑参数是单值的情况，不考虑类似checkbox的提交的数据）
+                    String value = entry.getValue()[0];
+                    //找到请求的参数对应目标方法的形参的索引，然后将其填充到实参数组
+                    //1.[请求参数名和 @RequestParam 注解的 value值 匹配]
+                    int indexOfRequestParameterIndex =
+                            getIndexOfRequestParameterIndex(myHandler.getMethod(), name);
+                    if (indexOfRequestParameterIndex != -1) {//找到了对应位置
+                        //将请求参数的值放入实参数组中
+                        params[indexOfRequestParameterIndex] = value;
+                    } else {
+                        //没有在目标方法的形参数组中找到对应的下标位置
+                        //2.使用默认机制进行匹配 [即请求参数名和形参名匹配]
+                        // (1)拿到目标方法的所有形参名
+                        List<String> parameterNames = getParameterNames(myHandler.getMethod());
+                        // (2)对形参名进行遍历,如果匹配，把当前请求的参数值填充到实参数组的相同索引位置
+                        for (int i = 0; i < parameterNames.size(); i++) {
+                            //如果形参名和请求的参数名相同
+                            if (name.equals(parameterNames.get(i))) {
+                                //将请求的参数的value值放入实参数组中
+                                params[i] = value;
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                myHandler.getMethod().invoke(myHandler.getController(), params);
             }
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
 
+    /**
+     * 编写方法，返回请求参数是目标方法的第几个形参
+     * [请求参数名和 @RequestParam 注解的 value值 匹配]
+     *
+     * @param method 目标方法
+     * @param name   请求的参数名
+     * @return 返回请求的参数匹配目标方法形参的索引位置
+     */
+    public int getIndexOfRequestParameterIndex(Method method, String name) {
+        //得到 method的所有形参参数
+        Parameter[] parameters = method.getParameters();
+        for (int i = 0; i < parameters.length; i++) {
+            //取出当前的形参
+            Parameter parameter = parameters[i];
+            //先处理前面有 @RequestParam 注解修饰的形参
+            if (parameter.isAnnotationPresent(RequestParam.class)) {
+                //取出当前形参parameter的注解 @RequestParam的 value值
+                String value = parameter.getAnnotation(RequestParam.class).value();
+                //将请求的参数和注解指定的value匹配，如果相同就说明找到了目标方法的形参位置
+                if (name.equals(value)) {
+                    return i;//返回的是匹配的形参的位置
+                }
+            }
+        }
+        return -1;//如果没有匹配成功，就返回-1
+    }
+
+    /**
+     * 编写方法，得到目标方法的所有形参的名称，并放入到集合中返回
+     *
+     * @param method
+     * @return
+     */
+    public List<String> getParameterNames(Method method) {
+        ArrayList<String> paramNamesList = new ArrayList<>();
+        //获取到所有的参数名--->这里有一个细节
+        //默认情况下 parameter.getName() 返回的的名称不是真正的形参名 request,response,name...
+        //而是 [arg0, arg1, arg2...]
+        //这里我们使用java8的特性，并且在pom.xml文件中配置maven编译插件，才能得到真正的名称
+        Parameter[] parameters = method.getParameters();
+        //遍历parameters，取出名称，放入 paramNamesList
+        for (Parameter parameter : parameters) {
+            paramNamesList.add(parameter.getName());
+        }
+        System.out.println("目标方法的形参参数列表名称=" + paramNamesList);
+        return paramNamesList;
+    }
 }

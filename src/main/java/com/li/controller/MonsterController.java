@@ -4,6 +4,7 @@ import com.li.entity.Monster;
 import com.li.myspringmvc.annotation.AutoWired;
 import com.li.myspringmvc.annotation.Controller;
 import com.li.myspringmvc.annotation.RequestMapping;
+import com.li.myspringmvc.annotation.RequestParam;
 import com.li.service.MonsterService;
 
 import javax.servlet.http.HttpServletRequest;
@@ -50,4 +51,34 @@ public class MonsterController {
             e.printStackTrace();
         }
     }
+
+    //增加方法，通过name返回对应的monster集合
+    @RequestMapping(value = "/monster/find")
+    public void findMonsterByName(HttpServletRequest request,
+                                  HttpServletResponse response, String name) {
+        //设置编码
+        response.setContentType("text/html;charset=utf-8");
+
+        System.out.println("----接收到的name=" + name);
+        StringBuilder content = new StringBuilder("<h1>妖怪列表信息</h1>");
+        content.append("<table border='1px' width='400px' style='border-collapse:collapse'>");
+        //调用 monsterService的方法
+        List<Monster> monsters = monsterService.findMonsterByName(name);
+        for (Monster monster : monsters) {
+            content.append("<tr>" +
+                    "<td>" + monster.getId() + "</td>" +
+                    "<td>" + monster.getName() + "</td>" +
+                    "<td>" + monster.getSkill() + "</td>" +
+                    "<td>" + monster.getAge() + "</td></tr>");
+        }
+        content.append("</table>");
+        //获取writer，返回提示信息
+        try {
+            PrintWriter printWriter = response.getWriter();
+            printWriter.print(content.toString());
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
 }

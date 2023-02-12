@@ -23,4 +23,25 @@ public class MonsterServiceImpl implements MonsterService {
         monsters.add(new Monster(200, "猫妖", "撕咬", 800));
         return monsters;
     }
+
+    @Override
+    public List<Monster> findMonsterByName(String name) {
+        //这里模拟到 DB获取数据
+        List<Monster> monsters = new ArrayList<>();
+        monsters.add(new Monster(100, "牛魔王", "芭蕉扇", 400));
+        monsters.add(new Monster(200, "猫妖", "撕咬", 800));
+        monsters.add(new Monster(300, "鼠精", "偷灯油", 200));
+        monsters.add(new Monster(400, "大象精", "运木头", 300));
+        monsters.add(new Monster(500, "白骨精", "吐烟雾", 500));
+
+        //创建集合返回查询到的monster集合
+        List<Monster> findMonsters = new ArrayList<>();
+        //遍历monster集合，将符合条件的放到findMonster集合中
+        for (Monster monster : monsters) {
+            if (monster.getName().contains(name)) {
+                findMonsters.add(monster);
+            }
+        }
+        return findMonsters;
+    }
 }
