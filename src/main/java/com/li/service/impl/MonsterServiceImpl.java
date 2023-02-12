@@ -44,4 +44,14 @@ public class MonsterServiceImpl implements MonsterService {
         }
         return findMonsters;
     }
+
+    @Override
+    public boolean login(String name) {
+        //模拟DB
+        if ("白骨精".equals(name)) {
+            return true;
+        } else {
+            return false;
+        }
+    }
 }

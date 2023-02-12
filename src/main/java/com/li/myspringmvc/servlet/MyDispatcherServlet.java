@@ -151,6 +151,8 @@ public class MyDispatcherServlet extends HttpServlet {
                 // 获取http请求的参数集合 Map<String, String[]>
                 // 第一个参数 String 表示 http请求的参数名，
                 // 第二个参数 String[]数组，之所以为数组，是因为前端有可能传入像checkbox这种多选的参数
+                //先处理中文乱码问题
+                request.setCharacterEncoding("utf-8");
                 Map<String, String[]> parameterMap = request.getParameterMap();
                 // 遍历 parameterMap，将请求参数按照顺序填充到实参数组 params
                 for (Map.Entry<String, String[]> entry : parameterMap.entrySet()) {
@@ -181,8 +183,30 @@ public class MyDispatcherServlet extends HttpServlet {
                         }
                     }
                 }
-
-                myHandler.getMethod().invoke(myHandler.getController(), params);
+                //反射调用目标方法
+                Object result = myHandler.getMethod().invoke(myHandler.getController(), params);
+                //对返回的结果进行解析(原生的SpringMVC通过视图解析器来完成)
+                if (result instanceof String) {
+                    String viewName = (String) result;
+                    System.out.println("viewName=" + viewName);
+                    if (viewName.contains(":")) {//如果返回的String结果为 forward:/login_ok.jsp
+                        // 或 redirect:/login_ok.jsp 的形式
+                        String viewType = viewName.split(":")[0]; // forward或redirect
+                        String viewPage = viewName.split(":")[1]; // 要跳转的页面名
+                        //判断是 forward 还是 redirect
+                        if ("forward".equals(viewType)) {//请求转发
+                            request.getRequestDispatcher(viewPage)
+                                    .forward(request, response);
+                        } else if ("redirect".equals(viewType)) {//重定向
+                            //注意这里的路径问题
+                            viewPage = request.getContextPath() + viewPage;
+                            response.sendRedirect(viewPage);
+                        }
+                    } else {//如果两者都没有，默认为请求转发
+                        request.getRequestDispatcher("/" + viewName)
+                                .forward(request, response);
+                    }
+                }//这里还可以拓展
             }
         } catch (Exception e) {
             e.printStackTrace();

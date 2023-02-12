@@ -14,4 +14,7 @@ public interface MonsterService {
 
     //增加方法，通过传入的名字返回 monster列表
     public List<Monster> findMonsterByName(String name);
+
+    //增加方法，处理登录
+    public boolean login(String name);
 }
