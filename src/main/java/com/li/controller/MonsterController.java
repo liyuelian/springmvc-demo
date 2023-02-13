@@ -1,16 +1,14 @@
 package com.li.controller;
 
 import com.li.entity.Monster;
-import com.li.myspringmvc.annotation.AutoWired;
-import com.li.myspringmvc.annotation.Controller;
-import com.li.myspringmvc.annotation.RequestMapping;
-import com.li.myspringmvc.annotation.RequestParam;
+import com.li.myspringmvc.annotation.*;
 import com.li.service.MonsterService;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -99,5 +97,23 @@ public class MonsterController {
             //return "redirect:/login_error.jsp";
             return "login_error.jsp";
         }
+    }
+
+    /**
+     * 编写方法，返回json格式的数据
+     * 1.目标方法返回的结果是给SpringMVC底层通过反射调用的位置
+     * 2.我们在SpringMVC底层反射调用的位置接收到结果并进行解析即可
+     * 3. @ResponseBody(value = "json") 表示希望以json格式返回数据给浏览器
+     * @param request
+     * @param response
+     * @return
+     */
+    @RequestMapping(value = "/monster/list/json")
+    @ResponseBody(value = "json")
+    public List<Monster> listMonsterByJson(HttpServletRequest request,
+                                           HttpServletResponse response) {
+        List<Monster> monsters = monsterService.listMonster();
+        return monsters;
+
     }
 }

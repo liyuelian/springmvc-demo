@@ -1,8 +1,10 @@
 package com.li.myspringmvc.servlet;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.li.myspringmvc.annotation.Controller;
 import com.li.myspringmvc.annotation.RequestMapping;
 import com.li.myspringmvc.annotation.RequestParam;
+import com.li.myspringmvc.annotation.ResponseBody;
 import com.li.myspringmvc.context.MyWebApplicationContext;
 import com.li.myspringmvc.handler.MyHandler;
 
@@ -12,6 +14,7 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
 import java.util.*;
@@ -207,6 +210,26 @@ public class MyDispatcherServlet extends HttpServlet {
                                 .forward(request, response);
                     }
                 }//这里还可以拓展
+                else if (result instanceof ArrayList) {//如果是一个集合
+                    Method method = myHandler.getMethod();
+                    //判断目标方法是否有一个@ResponseBody注解
+                    if (method.isAnnotationPresent(ResponseBody.class)) {
+                        String valueType = method.getAnnotation(ResponseBody.class).value();
+                        //如果注解的value为默认值，或者value="json"，就认为目标方法要返回的数据格式为json
+                        if ("json".equals(valueType) || "".equals(valueType)) {
+                            //对Arraylist转为json字符串
+                            //这里我们使用jackson包下的工具类解决
+                            ObjectMapper objectMapper = new ObjectMapper();
+                            String resultJson = objectMapper.writeValueAsString(result);
+                            //这里简单处理，就直接返回
+                            response.setContentType("text/html;charset=utf-8");
+                            PrintWriter writer = response.getWriter();
+                            writer.write(resultJson);
+                            writer.flush();
+                            writer.close();
+                        }
+                    }
+                }
             }
         } catch (Exception e) {
             e.printStackTrace();
